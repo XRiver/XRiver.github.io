@@ -42,6 +42,11 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
   box-shadow:0 0 12px rgba(46,199,168,.5);
 }
 .brand h1{font-size:16px;font-weight:700;letter-spacing:.5px;white-space:nowrap}
+.lang-toggle{
+  height:26px;padding:0 11px;border-radius:14px;border:1px solid var(--acc);
+  background:rgba(77,215,254,.1);color:var(--acc);font-size:12.5px;font-weight:700;flex:0 0 auto;
+}
+.lang-toggle:hover{background:rgba(77,215,254,.22)}
 .brand .ver{font-size:11px;color:var(--dim);border:1px solid var(--line);border-radius:9px;padding:1px 7px;white-space:nowrap}
 .tools{margin-left:auto;display:flex;align-items:center;gap:8px}
 .search-wrap{position:relative}
@@ -346,8 +351,9 @@ details.up summary:hover{color:var(--acc)}
 <header id="topbar">
   <div class="brand">
     <span class="logo">◈</span>
-    <h1>戴森球计划 · 合成树助手</h1>
+    <h1 id="brand-title">戴森球计划 · 合成树助手</h1>
     <span class="ver" id="ver-tag"></span>
+    <button id="lang-toggle" class="lang-toggle" title="切换到 English">EN</button>
   </div>
   <div class="tools">
     <div class="search-wrap">
@@ -408,8 +414,8 @@ details.up summary:hover{color:var(--acc)}
 
 <div id="modal-help" class="modal-back hidden">
   <div class="modal">
-    <div class="modal-head"><h2>使用说明</h2><button class="modal-close" data-close="modal-help">✕</button></div>
-    <div class="modal-body">
+    <div class="modal-head"><h2 id="help-title">使用说明</h2><button class="modal-close" data-close="modal-help">✕</button></div>
+    <div class="modal-body" id="help-body">
       <div class="help-block">
         <h3>① 查看上游 / 下游（聚焦重排）</h3>
         <p>点击任意物品，会进入<strong>聚焦模式</strong>：系统只保留它的<strong>上游依赖树</strong>，并自动<strong>重新分层、放大</strong>成一张独立清晰的生产树（不再和其他物品挤在一起）。右侧面板显示配方、直接原料、用途与上游清单。点击空白处、按 <code>Esc</code> 或返回按钮即可切回全景。</p>

@@ -24,10 +24,26 @@ const RAW_GROUP = {
   "树木与植物": ["log","plant-fuel"]
 };
 const BUILDING_CLS = {"化工厂":"chem","量子化工厂":"chem"};
+const GRP_EN = {"基础矿脉":"Basic veins","海洋与液体":"Oceans & fluids","气态巨行星":"Gas giants","树木与植物":"Trees & plants"};
 const catRank = id => CAT_ORDER.indexOf(ITEM[id].cat);
 
 const ITEM = {}; G.items.forEach(it=>ITEM[it.id]=it);
 G.items.forEach(it=>ITEM[it.en.toLowerCase()] = ITEM[it.en.toLowerCase()] || it.id);
+
+/* ---------------- i18n ---------------- */
+let lang = "zh";   // "zh" | "en"
+const L = (zh, en) => lang === "zh" ? zh : en;
+const CAT_EN = {"矿物资源":"Resources","基础材料":"Materials","组件":"Components","矩阵":"Matrices","燃料":"Fuel","武器与单位":"Weapons & Units","戴森球":"Dyson Sphere","物流":"Logistics","电力":"Power","生产建筑":"Production","防御设施":"Defense","装饰":"Decoration","黑雾掉落":"Dark Fog Drops"};
+const BLD_EN = {"电弧熔炉":"Arc Smelter","制造台":"Assembling Machine","原油精炼厂":"Oil Refinery","化工厂":"Chemical Plant","能量枢纽":"Energy Exchanger","微型粒子对撞机":"Miniature Particle Collider","射线接收站":"Ray Receiver","分馏塔":"Fractionator","矩阵研究站":"Matrix Lab","采矿机":"Mining Machine","轨道采集器":"Orbital Collector","抽水站":"Water Pump","原油萃取站":"Oil Extractor","量子化工厂":"Quantum Chemical Plant","制造台Mk.I":"Assembling Machine Mk.I","制造台Mk.II":"Assembling Machine Mk.II","制造台Mk.III":"Assembling Machine Mk.III"};
+const SRC_EN = {"vein":"Vein mining","ocean":"Ocean","gas":"Gas giant","tree":"Logging","plant":"Foraging","darkfog":"Dark Fog drop","special":"Special"};
+const nameOf   = id => lang === "zh" ? ITEM[id].zh : ITEM[id].en;
+const catName  = c  => lang === "zh" ? c  : (CAT_EN[c] || c);
+const bldName  = b  => lang === "zh" ? b  : (BLD_EN[b] || b);
+const srcLabel = s  => lang === "zh" ? (s.label || "") : (SRC_EN[s.type] || s.label || "");
+const recipeName = r => lang === "zh" ? r.zh : (r.en || r.zh);
+const itemAlt   = it => lang === "zh" ? it.en : it.zh;
+const recipeAlt = r  => lang === "zh" ? r.en : r.zh;
+
 
 document.getElementById("ver-tag").textContent = "v" + G.version;
 
@@ -171,7 +187,7 @@ function computeLayoutSet(memberSet){
   ids.forEach(id=>layers[lay[id]].push(id));
 
   const sortByCat = a=>{ const c = catRank(a)-catRank(b2(a)); return c; };
-  const sortFn = (a,b)=> (catRank(a)-catRank(b)) || ITEM[a].zh.localeCompare(ITEM[b].zh,"zh-Hans-CN");
+  const sortFn = (a,b)=> (catRank(a)-catRank(b)) || nameOf(a).localeCompare(nameOf(b),"zh-Hans-CN");
   layers.forEach(l=>l.sort(sortFn));
 
   // barycenter sweeps to reduce edge crossings
@@ -197,7 +213,7 @@ function computeLayoutSet(memberSet){
         if (c) return { n, b: sum/c };
         return { n, b: (layers[l].indexOf(n)) }; // default current pos
       });
-      items.sort((a,b)=> (catRank(a.n)-catRank(b.n)) || (a.b-b.b) || ITEM[a.n].zh.localeCompare(ITEM[b.n].zh,"zh-Hans-CN"));
+      items.sort((a,b)=> (catRank(a.n)-catRank(b.n)) || (a.b-b.b) || nameOf(a.n).localeCompare(nameOf(b.n),"zh-Hans-CN"));
       layers[l] = items.map(x=>x.n);
     }
   }
@@ -257,10 +273,10 @@ const NS = "http://www.w3.org/2000/svg";
 
 function fmtCount(n){ return n % 1 === 0 ? String(n) : (Math.round(n*100)/100)+""; }
 function recipeTooltip(r){
-  const ins = r.in.map(x=>ITEM[x.i].zh+"×"+fmtCount(x.n)).join(" + ");
-  const outs = r.out.map(x=>ITEM[x.i].zh+"×"+fmtCount(x.n)).join(" + ");
-  const tm = r.t < 0 ? `每循环 ${(-r.t).toFixed(1)}%` : Math.round(r.t*10)/10+" 秒/份";
-  return `<span class="bld">${r.b}</span>　${r.zh}（${tm}）<br>${ins} → ${outs}`;
+  const ins = r.in.map(x=>nameOf(x.i)+"×"+fmtCount(x.n)).join(" + ");
+  const outs = r.out.map(x=>nameOf(x.i)+"×"+fmtCount(x.n)).join(" + ");
+  const tm = r.t < 0 ? `${L("每循环","per cycle")} ${(-r.t).toFixed(1)}%` : Math.round(r.t*10)/10 + L(" 秒/份"," s/unit");
+  return `<span class="bld">${bldName(r.b)}</span>　${recipeName(r)}（${tm}）<br>${ins} → ${outs}`;
 }
 
 function edgeSpanOpacity(e){
@@ -393,14 +409,14 @@ function applyState(){
 /* ---------------- tooltip ---------------- */
 const tip = $("#tooltip");
 function showNodeTip(ev, it){
-  let html = `<div class="tt-name"><img src="${it.icon}" onerror="this.style.visibility='hidden'">${it.zh}<span style="font-size:11px;color:var(--dim2)">${it.en}</span></div>`;
-  html += `<div class="tt-line">类别：${it.cat}`;
-  if (it.src.length) html += ` · 来源：${it.src.map(s=>s.label).join("、")}`;
+  let html = `<div class="tt-name"><img src="${it.icon}" onerror="this.style.visibility='hidden'">${nameOf(it.id)}<span style="font-size:11px;color:var(--dim2)">${itemAlt(it)}</span></div>`;
+  html += `<div class="tt-line">${L("类别","Category")}：${catName(it.cat)}`;
+  if (it.src.length) html += ` · ${L("来源","Source")}：${it.src.map(s=>srcLabel(s)).join(L("、",", "))}`;
   const rc = G.recipes.filter(r=>r.out.some(o=>o.i===it.id));
   if (rc.length){
     const isOff = rc.map(r=>disabled.has(r.id));
-    html += `<div class="tt-recipe">${rc.map((r,i)=>recipeTooltip(r)+(isOff[i]?' <span style="color:var(--bad)">(已禁用)</span>':"")).join("<br>")}</div>`;
-  } else if (!it.raw) html += `<div class="tt-recipe" style="color:var(--dim2)">暂无生产配方</div>`;
+    html += `<div class="tt-recipe">${rc.map((r,i)=>recipeTooltip(r)+(isOff[i]?' <span style="color:var(--bad)">(${L("已禁用","disabled")})</span>':"")).join("<br>")}</div>`;
+  } else if (!it.raw) html += `<div class="tt-recipe" style="color:var(--dim2)">${L("暂无生产配方","No production recipe")}</div>`;
   tip.innerHTML = html;
   tip.classList.remove("hidden");
   moveTip(ev);
@@ -423,11 +439,11 @@ function hideTip(){ tip.classList.add("hidden"); }
 /* rich recipe tooltip shown when hovering recipe labels in the enable/disable UIs */
 function showRecipeTip(ev, r){
   const off = disabled.has(r.id);
-  const ins = r.in.map(x=>`<span class="it-chip"><img src="${ITEM[x.i].icon}" alt="">${ITEM[x.i].zh}<span class="cnt">×${fmtCount(x.n)}</span></span>`).join('<span class="arrow">→</span>');
-  const outs = r.out.map(o=>`<span class="it-chip"><img src="${ITEM[o.i].icon}" alt="">${ITEM[o.i].zh}<span class="cnt">×${fmtCount(o.n)}</span></span>`).join('<span class="arrow">+</span>');
-  const tm = r.t < 0 ? `每循环 ${(-r.t).toFixed(1)}%` : `${Math.round(r.t*10)/10} 秒/份`;
-  tip.innerHTML = `<div class="tt-name">${r.zh}<span style="font-size:11px;color:var(--dim2)">${r.en}</span>${off?` <span style="font-size:10px;color:var(--bad)">(已禁用)</span>`:""}</div>
-    <div class="tt-line">建筑：${r.b}　·　${tm}</div>
+  const ins = r.in.map(x=>`<span class="it-chip"><img src="${ITEM[x.i].icon}" alt="">${nameOf(x.i)}<span class="cnt">×${fmtCount(x.n)}</span></span>`).join('<span class="arrow">→</span>');
+  const outs = r.out.map(o=>`<span class="it-chip"><img src="${ITEM[o.i].icon}" alt="">${nameOf(o.i)}<span class="cnt">×${fmtCount(o.n)}</span></span>`).join('<span class="arrow">+</span>');
+  const tm = r.t < 0 ? `${L("每循环","per cycle")} ${(-r.t).toFixed(1)}%` : `${Math.round(r.t*10)/10} ${L("秒/份","s/unit")}`;
+  tip.innerHTML = `<div class="tt-name">${recipeName(r)}<span style="font-size:11px;color:var(--dim2)">${recipeAlt(r)}</span>${off?` <span style="font-size:10px;color:var(--bad)">(已禁用)</span>`:""}</div>
+    <div class="tt-line">${L("建筑","Building")}：${bldName(r.b)}　·　${tm}</div>
     <div class="tt-recipe" style="border-top:1px dashed var(--line);margin-top:5px;padding-top:5px">${ins}<span class="arrow">⇒</span>${outs}</div>`;
   tip.classList.remove("hidden");
   moveTip(ev);
@@ -491,11 +507,11 @@ function toggleRecipe(rid, enable){
 }
 function updateHint(){
   if (catFilter) {
-    $("#hintbar").textContent = `已高亮「${catFilter}」类型 · 点击图例任意类别可切换 · 再次点击取消 · Esc 清除`;
+    $("#hintbar").textContent = L("已高亮「","Highlighted: ")+catName(catFilter)+L("」类型 · 点击图例任意类别可切换 · 再次点击取消 · Esc 清除","」 · click a legend category to switch · click again to clear · Esc to clear");
   } else {
     $("#hintbar").textContent = mode === "focus"
-      ? "聚焦模式：只显示该物品的上游依赖树 · 点击节点继续上钻 · 右侧面板可禁用任意上游配方 · Esc 返回全景"
-      : "点击物品进入聚焦 · 点击图例高亮某类型 · 滚轮缩放 · 拖拽平移 · 资源模式高亮可合成产物";
+      ? L("聚焦模式：只显示该物品的上游依赖树 · 点击节点继续上钻 · 右侧面板可禁用任意上游配方 · Esc 返回全景","Focus mode: only this item's upstream tree · click a node to drill up · toggle any upstream recipe in the side panel · Esc to return")
+      : L("点击物品进入聚焦 · 点击图例高亮某类型 · 滚轮缩放 · 拖拽平移 · 资源模式高亮可合成产物","Click an item to focus · click legend to highlight a category · scroll to zoom · drag to pan · Resource mode highlights craftable items");
   }
 }
 
@@ -568,13 +584,13 @@ window.addEventListener("resize", ()=>{ if (view.k <= 0) fitView(); });
 
 /* ---------------- production calculator ---------------- */
 const RAW_RATE = {
-  vein:   { b: "采矿机",   r: 30, note: "估算·按每脉 30/min" },
-  ocean:  { b: "抽水站",   r: 60, note: "估算·60/min" },
-  gas:    { b: "轨道采集器", r: 30, note: "估算·约 30/min" },
-  tree:   { b: "手动砍伐", r: null, note: "手动·不固定" },
-  plant:  { b: "手动采集", r: null, note: "手动·不固定" },
-  darkfog:{ b: "黑雾掉落", r: null, note: "掉落·不可控" },
-  special:{ b: "特殊建筑", r: null, note: "按需求" },
+  vein:   { b: ["采矿机","Mining Machine"],       r: 30, note: ["估算·按每脉 30/min","est. ~30/min per vein"] },
+  ocean:  { b: ["抽水站","Water Pump"],            r: 60, note: ["估算·60/min","est. 60/min"] },
+  gas:    { b: ["轨道采集器","Orbital Collector"], r: 30, note: ["估算·约 30/min","est. ~30/min"] },
+  tree:   { b: ["手动砍伐","Manual chopping"],     r: null, note: ["手动·不固定","manual · varies"] },
+  plant:  { b: ["手动采集","Manual foraging"],     r: null, note: ["手动·不固定","manual · varies"] },
+  darkfog:{ b: ["黑雾掉落","Dark Fog drop"],       r: null, note: ["掉落·不可控","drop · uncontrollable"] },
+  special:{ b: ["特殊建筑","Special building"],    r: null, note: ["按需求","as needed"] },
 };
 function possibleRecipes(id){ return G.recipes.filter(r=>r.out.some(o=>o.i===id) && !disabled.has(r.id)); }
 function collectSrc(id){ return (ITEM[id].src||[]).some(s=>["vein","ocean","gas","tree","plant"].includes(s.type)); }
@@ -591,7 +607,7 @@ function rawBuilding(id, demand){
     const r = RAW_RATE[s.type];
     if (r) {
       const n = r.r ? Math.ceil(demand / r.r) : "—";
-      return { b: r.b, n, note: r.note };
+      return { b: L(r.b[0], r.b[1]), n, note: L(r.note[0], r.note[1]) };
     }
   }
   return { b: "—", n: "—", note: "" };
@@ -636,13 +652,13 @@ function computeFlow(rootId, rate){
     return { itemId: n, demand: d, bld, note, recipe: r, selectable: collectSrc(n) || possibleRecipes(n).length > 1 };
   });
   rows.sort((a,b)=> (curLayout.lay[a.itemId] ?? 999) - (curLayout.lay[b.itemId] ?? 999)
-    || ITEM[b.itemId].zh.localeCompare(ITEM[a.itemId].zh, "zh-Hans-CN"));
+    || nameOf(b.itemId).localeCompare(nameOf(a.itemId), "zh-Hans-CN"));
   return rows;
 }
 
 /* ---------------- side panel ---------------- */
 function recipeRowHTML(r){
-  return r.in.map(x=>`<span class="it-chip"><img src="${ITEM[x.i].icon}" alt="">${ITEM[x.i].zh}<span class="cnt">×${fmtCount(x.n)}</span></span>`)
+  return r.in.map(x=>`<span class="it-chip"><img src="${ITEM[x.i].icon}" alt="">${nameOf(x.i)}<span class="cnt">×${fmtCount(x.n)}</span></span>`)
     .join('<span class="arrow">→</span>');
 }
 
@@ -651,23 +667,23 @@ function fmtDemand(d){
   return (Math.round(d * 100) / 100) + "";
 }
 function rowRecipeOptions(itemId, curRecipeId, curRaw){
-  let opts = collectSrc(itemId) ? `<option value="raw" ${curRaw?"selected":""}>原生采集</option>` : "";
-  opts += possibleRecipes(itemId).map(r=>`<option value="${r.id}" ${!curRaw && r.id===curRecipeId?"selected":""}>${r.zh}（${r.b}）</option>`).join("");
+  let opts = collectSrc(itemId) ? `<option value="raw" ${curRaw?"selected":""}>${L("原生采集","Collect raw")}</option>` : "";
+  opts += possibleRecipes(itemId).map(r=>`<option value="${r.id}" ${!curRaw && r.id===curRecipeId?"selected":""}>${recipeName(r)}（${bldName(r.b)}）</option>`).join("");
   return opts;
 }
 function refreshCalc(id){
   const el = $("#calc-list");
   if (!el) return;
   const rows = computeFlow(id, targetRate);
-  if (!rows.length){ el.innerHTML = `<div class="rcp-none">无法计算（该物品没有可用的生产配方）</div>`; return; }
+  if (!rows.length){ el.innerHTML = `<div class="rcp-none">${L("无法计算（该物品没有可用的生产配方）","Cannot compute (no usable production recipe)")}</div>`; return; }
   let h = `<div class="calc-table">`;
   rows.forEach(row=>{
     const it = ITEM[row.itemId];
     const curRaw = !row.recipe;
     const sel = row.selectable
-      ? `<select class="calc-sel" data-item="${row.itemId}" title="选择该物品的产出方式">${rowRecipeOptions(row.itemId, row.recipe?row.recipe.id:null, curRaw)}</select>` : "";
+      ? `<select class="calc-sel" data-item="${row.itemId}" title="${L("选择该物品的产出方式","Choose how this item is produced")}">${rowRecipeOptions(row.itemId, row.recipe?row.recipe.id:null, curRaw)}</select>` : "";
     h += `<div class="calc-row">
-      <span class="calc-it"><img src="${it.icon}" alt="">${it.zh}${sel}</span>
+      <span class="calc-it"><img src="${it.icon}" alt="">${nameOf(it.id)}${sel}</span>
       <span class="calc-dem">${fmtDemand(row.demand)}<span class="calc-unit">/min</span></span>
       <span class="calc-bld">${row.bld.b} × ${row.bld.n}${row.note?`<span class="calc-note"> ${row.note}</span>`:""}</span>
     </div>`;
@@ -687,80 +703,80 @@ function renderSide(id){
   making.forEach(r=>{ if (!disabled.has(r.id)) r.in.forEach(x=>rawIn.add(x.i)); });
   const up = [...upstreamOf(id)];
   const down = downstreamOf(id).size - 1;
-  const L = curLayout.lay;
-  up.sort((a,b)=> (L[a]-L[b]) || ITEM[a].zh.localeCompare(ITEM[b].zh,"zh-Hans-CN"));
+  const LY = curLayout.lay;
+  up.sort((a,b)=> (LY[a]-LY[b]) || nameOf(a).localeCompare(nameOf(b),"zh-Hans-CN"));
 
   let h = `<div class="side-head">
-    ${(focusStack.length || focus) ? `<button class="side-back" id="side-back" title="返回上一级">← 返回</button>` : ""}
+    ${(focusStack.length || focus) ? `<button class="side-back" id="side-back" title="${L("返回上一级","Back")}">← ${L("返回","Back")}</button>` : ""}
     <img src="${it.icon}" width="40" height="40" onerror="this.style.visibility='hidden'">
-    <div class="nm"><div class="zh">${it.zh}</div><div class="en">${it.en}</div></div>
+    <div class="nm"><div class="zh">${nameOf(it.id)}</div><div class="en">${itemAlt(it)}</div></div>
     <button class="side-close" id="side-close">✕</button>
   </div><div class="side-body">`;
 
   h += `<div class="sect"><div class="stats-bar">
-    <div class="stat-pill"><div class="v">${up.length}</div><div class="l">上游原料</div></div>
-    <div class="stat-pill"><div class="v">${down}</div><div class="l">下游产物</div></div>
-    <div class="stat-pill"><div class="v">${making.length}</div><div class="l">生产配方</div></div>
+    <div class="stat-pill"><div class="v">${up.length}</div><div class="l">${L("上游原料","Upstream")}</div></div>
+    <div class="stat-pill"><div class="v">${down}</div><div class="l">${L("下游产物","Downstream")}</div></div>
+    <div class="stat-pill"><div class="v">${making.length}</div><div class="l">${L("生产配方","Recipes")}</div></div>
   </div></div>`;
 
   if (it.src.length){
-    h += `<div class="sect"><h3>直接获取</h3><div class="chips">${
-      it.src.map(s=>`<span class="it-chip srcb"><span class="cnt">◆</span>${s.label}</span>`).join("")
+    h += `<div class="sect"><h3>${L("直接获取","Direct sources")}</h3><div class="chips">${
+      it.src.map(s=>`<span class="it-chip srcb"><span class="cnt">◆</span>${srcLabel(s)}</span>`).join("")
     }</div></div>`;
   }
 
   // production calculator (target rate -> upstream demands + building counts)
-  h += `<div class="sect" id="calc-sect"><h3>产线计算</h3>
-    <div class="calc-count">目标产出
-      <input id="calc-rate" class="calc-rate" type="number" min="1" step="any" value="${targetRate}"> /分钟
-      <button class="mini-btn" id="calc-preset" title="快捷设置为 100/min">100</button>
+  h += `<div class="sect" id="calc-sect"><h3>${L("产线计算","Production Calculator")}</h3>
+    <div class="calc-count">${L("目标产出","Target output")}
+      <input id="calc-rate" class="calc-rate" type="number" min="1" step="any" value="${targetRate}"> ${L("/分钟","/min")}
+      <button class="mini-btn" id="calc-preset" title="${L("快捷设置为 100/min","Set to 100/min")}">100</button>
     </div>
     <div id="calc-list"></div>
   </div>`;
 
   // this item's recipes (toggle)
-  h += `<div class="sect"><h3>生产配方</h3>`;
+  h += `<div class="sect"><h3>${L("生产配方","Production recipes")}</h3>`;
   if (!making.length){
-    const src = it.src.map(s=>s.label).join("、") || "特殊途径";
-    h += `<div class="rcp-none">无法通过常规配方生产，仅能通过「${src}」获得${it.raw ? "" : "（当前配方已全部禁用）"}</div>`;
+    const src = it.src.map(s=>srcLabel(s)).join(L("、",", ")) || L("特殊途径","special");
+    h += `<div class="rcp-none">无法通过常规配方生产，仅能通过「${src}」${L("","")}获得${it.raw ? "" : L("（当前配方已全部禁用）"," (all recipes disabled)")}</div>`;
   }
   making.forEach(r=>{
     const off = disabled.has(r.id);
-    const tm = r.t < 0 ? `<span class="rc-time pct">每循环 ${(-r.t).toFixed(1)}%</span>` : `<span class="rc-time">${Math.round(r.t*10)/10}s/份</span>`;
+    const tm = r.t < 0 ? `<span class="rc-time pct">${L("每循环","per cycle")} ${(-r.t).toFixed(1)}%</span>` : `<span class="rc-time">${Math.round(r.t*10)/10}${L("s/份","s/unit")}</span>`;
     h += `<div class="rcp-card ${off?"off":""}" data-rid="${r.id}">
       <div class="rc-top">
-        <label class="rc-toggle"><input type="checkbox" ${off?"":"checked"} data-rid="${r.id}">启用</label>
-        <span class="rc-name">${r.zh}</span>
-        <span class="rc-bld ${BUILDING_CLS[r.b]||""}">${r.b}</span>
+        <label class="rc-toggle"><input type="checkbox" ${off?"":"checked"} data-rid="${r.id}">${L("启用","Enable")}</label>
+        <span class="rc-name">${recipeName(r)}</span>
+        <span class="rc-bld ${BUILDING_CLS[r.b]||""}">${bldName(r.b)}</span>
         ${tm}
       </div>
       <div class="mchips"><span class="it-chip" style="border-color:transparent;background:transparent">${recipeRowHTML(r)}</span></div>
-      <div class="rc-meta">产出：${r.out.map(o=>`<span class="it-chip"><img src="${ITEM[o.i].icon}" alt="">${ITEM[o.i].zh}<span class="cnt">×${fmtCount(o.n)}</span></span>`).join("　")}</div>
+      <div class="rc-meta">${L("产出","Output")}：${r.out.map(o=>`<span class="it-chip"><img src="${ITEM[o.i].icon}" alt="">${nameOf(o.i)}<span class="cnt">×${fmtCount(o.n)}</span></span>`).join("　")}</div>
     </div>`;
   });
   h += `</div>`;
 
   if (rawIn.size){
-    h += `<div class="sect"><h3>直接原料</h3><div class="chips">${
-      [...rawIn].map(i=>`<span class="it-chip"><img src="${ITEM[i].icon}" alt="">${ITEM[i].zh}</span>`).join("")
+    h += `<div class="sect"><h3>${L("直接原料","Direct inputs")}</h3><div class="chips">${
+      [...rawIn].map(i=>`<span class="it-chip"><img src="${ITEM[i].icon}" alt="">${nameOf(i)}</span>`).join("")
     }</div></div>`;
   }
 
   // upstream recipes: toggle any ancestor recipe (feature: prune the highlight)
   // base list on the POTENTIAL upstream (all recipes), so disabled recipes stay visible/revivable
   const potUp = [...upstreamAll(id)].filter(i=>i!==id && hasRecipe(i));
-  potUp.sort((a,b)=> (curLayout.lay[a]??99999)-(curLayout.lay[b]??99999) || ITEM[a].zh.localeCompare(ITEM[b].zh,"zh-Hans-CN"));
+  potUp.sort((a,b)=> (curLayout.lay[a]??99999)-(curLayout.lay[b]??99999) || nameOf(a).localeCompare(nameOf(b),"zh-Hans-CN"));
   if (potUp.length){
-    h += `<div class="sect"><h3>上游配方 · 可启用/禁用</h3>
-      <div class="upnote">勾选可让某条生产路线启用；取消勾选即可把它从高亮树中剔除，从而缩减上游。</div>
+    h += `<div class="sect"><h3>${L("上游配方 · 可启用/禁用","Upstream recipes · toggle")}</h3>
+      <div class="upnote">${L("勾选可让某条生产路线启用；取消勾选即可把它从高亮树中剔除，从而缩减上游。","Check to enable a route; uncheck to remove that branch from the highlighted tree and shrink it.")}</div>
       <div class="upr-list">`;
     potUp.forEach(i=>{
       const rs = G.recipes.filter(r=>r.out.some(o=>o.i===i));
       const lv = curLayout.lay[i];
-      h += `<div class="upr"><div class="upr-name"><img src="${ITEM[i].icon}" alt=""><span>${ITEM[i].zh}</span>${lv!==undefined?`<span class="upr-l">L${lv}</span>`:`<span class="upr-l">—</span>`}</div><div class="upr-rs">`;
+      h += `<div class="upr"><div class="upr-name"><img src="${ITEM[i].icon}" alt=""><span>${nameOf(i)}</span>${lv!==undefined?`<span class="upr-l">L${lv}</span>`:`<span class="upr-l">—</span>`}</div><div class="upr-rs">`;
       rs.forEach(r=>{
         const off = disabled.has(r.id);
-        h += `<label class="upr-tog ${off?"off":""}" data-rid="${r.id}"><input type="checkbox" ${off?"":"checked"} data-rid="${r.id}"><span class="upr-zn">${r.zh}</span><span class="upr-b">${r.b}</span></label>`;
+        h += `<label class="upr-tog ${off?"off":""}" data-rid="${r.id}"><input type="checkbox" ${off?"":"checked"} data-rid="${r.id}"><span class="upr-zn">${recipeName(r)}</span><span class="upr-b">${bldName(r.b)}</span></label>`;
       });
       h += `</div></div>`;
     });
@@ -768,23 +784,23 @@ function renderSide(id){
   }
 
   // used in
-  h += `<div class="sect"><h3>用于生产</h3>`;
-  if (!using.length) h += `<div class="rcp-none">暂无配方使用该物品</div>`;
+  h += `<div class="sect"><h3>${L("用于生产","Used in")}</h3>`;
+  if (!using.length) h += `<div class="rcp-none">${L("暂无配方使用该物品","No recipe uses this item")}</div>`;
   using.forEach(r=>{
     const off = disabled.has(r.id);
-    const tm = r.t < 0 ? `每循环 ${(-r.t).toFixed(1)}%` : `${Math.round(r.t*10)/10}s`;
+    const tm = r.t < 0 ? `${L("每循环","per cycle")} ${(-r.t).toFixed(1)}%` : `${Math.round(r.t*10)/10}s`;
     h += `<div class="rcp-card ${off?"off":""}" data-rid="${r.id}">
-      <div class="rc-top"><span class="rc-name">${r.zh}</span><span class="rc-bld ${BUILDING_CLS[r.b]||""}">${r.b}</span><span class="rc-time">${tm}</span></div>
-      <div class="mchips">${r.in.map(x=>`<span class="it-chip"><img src="${ITEM[x.i].icon}" alt="">${ITEM[x.i].zh}<span class="cnt">×${fmtCount(x.n)}</span></span>`).join('<span class="arrow">→</span>')}<span class="arrow">⇒</span>${r.out.map(o=>`<span class="it-chip"><img src="${ITEM[o.i].icon}" alt="">${ITEM[o.i].zh}<span class="cnt">×${fmtCount(o.n)}</span></span>`).join('<span class="arrow">+</span>')}</div>
+      <div class="rc-top"><span class="rc-name">${recipeName(r)}</span><span class="rc-bld ${BUILDING_CLS[r.b]||""}">${bldName(r.b)}</span><span class="rc-time">${tm}</span></div>
+      <div class="mchips">${r.in.map(x=>`<span class="it-chip"><img src="${ITEM[x.i].icon}" alt="">${nameOf(x.i)}<span class="cnt">×${fmtCount(x.n)}</span></span>`).join('<span class="arrow">→</span>')}<span class="arrow">⇒</span>${r.out.map(o=>`<span class="it-chip"><img src="${ITEM[o.i].icon}" alt="">${nameOf(o.i)}<span class="cnt">×${fmtCount(o.n)}</span></span>`).join('<span class="arrow">+</span>')}</div>
     </div>`;
   });
   h += `</div>`;
 
   // upstream list (click to drill)
-  h += `<div class="sect"><h3>上游物品清单</h3>
-    <details class="up"><summary>共 ${up.length} 种 · 点击展开（点击某项可上钻聚焦）</summary>
+  h += `<div class="sect"><h3>${L("上游物品清单","Upstream items")}</h3>
+    <details class="up"><summary>${L("共 ","")}${up.length}${L(" 种 · 点击展开（点击某项可上钻聚焦）"," items · expand (click to drill up)")}</summary>
     <div class="subitems" style="margin-top:6px">${
-      up.map(i=>`<div class="row drill" data-drill="${i}"><span class="ind">L${L[i]}</span><img src="${ITEM[i].icon}" width="17" height="17" onerror="this.style.visibility='hidden'"><span class="col" style="color:${CAT_COLOR[ITEM[i].cat]}">${ITEM[i].zh}</span>${ITEM[i].src.length?`<span style="font-size:10px;color:var(--dim2)">（${ITEM[i].src.map(s=>s.label).join("、")}）</span>`:""}</div>`).join("")
+      up.map(i=>`<div class="row drill" data-drill="${i}"><span class="ind">L${LY[i]}</span><img src="${ITEM[i].icon}" width="17" height="17" onerror="this.style.visibility='hidden'"><span class="col" style="color:${CAT_COLOR[ITEM[i].cat]}">${nameOf(i)}</span>${ITEM[i].src.length?`<span style="font-size:10px;color:var(--dim2)">（${ITEM[i].src.map(s=>srcLabel(s)).join("、")}）</span>`:""}</div>`).join("")
     }</div></details></div>`;
 
   h += `</div>`;
@@ -821,8 +837,8 @@ function renderSide(id){
 function buildResourcePanel(){
   let h = "";
   for (const [grp, ids] of Object.entries(RAW_GROUP)){
-    h += `<div class="rp-group"><div class="gt">${grp}</div><div class="chips">`;
-    ids.forEach(id=>{ const it = ITEM[id]; h += `<div class="chip" data-id="${id}"><img src="${it.icon}" alt=""><span class="nm">${it.zh}</span></div>`; });
+    h += `<div class="rp-group"><div class="gt">${GRP_EN[grp]?L(grp,GRP_EN[grp]):grp}</div><div class="chips">`;
+    ids.forEach(id=>{ const it = ITEM[id]; h += `<div class="chip" data-id="${id}"><img src="${it.icon}" alt=""><span class="nm">${nameOf(it.id)}</span></div>`; });
     h += `</div></div>`;
   }
   $("#rsrc-groups").innerHTML = h;
@@ -831,7 +847,7 @@ function buildResourcePanel(){
 function refreshResourcePanel(){
   $$("#rsrc-groups .chip").forEach(c=>c.classList.toggle("sel", selectedRaws.has(c.dataset.id)));
   $("#rsrc-stats").innerHTML = resourceMode
-    ? `已勾选 <b>${selectedRaws.size}</b> 种可采集资源，可向下合成 <b>${(craftableFrom(selectedRaws)||new Set()).size}</b> 种物品（共 ${G.items.length} 种）`
+    ? (lang==="zh" ? `已勾选 <b>${selectedRaws.size}</b> 种可采集资源，可向下合成 <b>${(craftableFrom(selectedRaws)||new Set()).size}</b> 种物品（共 ${G.items.length} 种）` : `Selected <b>${selectedRaws.size}</b> resources → <b>${(craftableFrom(selectedRaws)||new Set()).size}</b> craftable items (of ${G.items.length})`)
     : "";
   $("#btn-resources").classList.toggle("on", resourceMode);
   updateResPanel();
@@ -868,14 +884,14 @@ function openRecipeManager(){
   const byItem = {};
   G.recipes.forEach(r=>r.out.forEach(o=>{ (byItem[o.i] = byItem[o.i] || []).push(r); }));
   const multi = Object.entries(byItem).filter(([,rs])=>rs.length >= 2).sort((a,b)=>ITEM[a[0]].zh.localeCompare(ITEM[b[0]].zh,"zh-Hans-CN"));
-  let h = multi.length ? "" : `<div class="rcp-none">没有多配方物品</div>`;
+  let h = multi.length ? "" : `<div class="rcp-none">${L("没有多配方物品","No multi-recipe items")}</div>`;
   multi.forEach(([id, rs])=>{
     const it = ITEM[id], enabled = rs.filter(r=>!disabled.has(r.id)).length;
     h += `<div class="mgr-item">
-      <div class="mi-head"><img src="${it.icon}" alt=""><span class="zh">${it.zh}</span><span class="en">${it.en}</span><span class="n">已启用 ${enabled}/${rs.length}</span></div>`;
+      <div class="mi-head"><img src="${it.icon}" alt=""><span class="zh">${nameOf(it.id)}</span><span class="en">${itemAlt(it)}</span><span class="n">${L("已启用 ","enabled ")}${enabled}/${rs.length}</span></div>`;
     rs.forEach(r=>{
       const off = disabled.has(r.id);
-      h += `<label data-rid="${r.id}"><input type="checkbox" data-rid="${r.id}" ${off?"":"checked"}>${r.zh}<span class="mb">${r.b}</span><span style="margin-left:auto;color:var(--dim2);font-size:11px">${r.in.map(x=>ITEM[x.i].zh+"×"+fmtCount(x.n)).join("+")} → ${r.out.map(o=>ITEM[o.i].zh+"×"+fmtCount(o.n)).join("+")}</span></label>`;
+      h += `<label data-rid="${r.id}"><input type="checkbox" data-rid="${r.id}" ${off?"":"checked"}>${recipeName(r)}<span class="mb">${bldName(r.b)}</span><span style="margin-left:auto;color:var(--dim2);font-size:11px">${r.in.map(x=>nameOf(x.i)+"×"+fmtCount(x.n)).join("+")} → ${r.out.map(o=>nameOf(o.i)+"×"+fmtCount(o.n)).join("+")}</span></label>`;
     });
     h += `</div>`;
   });
@@ -916,7 +932,7 @@ function doSearch(){
   if (!q){ drop.classList.add("hidden"); return; }
   const list = G.items.filter(it=> it.zh.toLowerCase().includes(q) || it.en.toLowerCase().includes(q));
   curList = list;
-  if (!list.length){ drop.innerHTML = `<div style="padding:9px 12px;color:var(--dim2);font-size:12.5px">没有匹配的物品</div>`; drop.classList.remove("hidden"); return; }
+  if (!list.length){ drop.innerHTML = `<div style="padding:9px 12px;color:var(--dim2);font-size:12.5px">${L("没有匹配的物品","No matching items")}</div>`; drop.classList.remove("hidden"); return; }
   curIdx = 0; renderDrop();
 }
 function renderDrop(){
@@ -924,9 +940,9 @@ function renderDrop(){
   drop.innerHTML = curList.slice(0,n).map((it,i)=>`
     <div class="sd-item ${i===curIdx?"sel":""}" data-id="${it.id}">
       <img src="${it.icon}" alt="" onerror="this.style.visibility='hidden'">
-      <span class="nm"><span class="zh">${it.zh}</span> <span class="en">${it.en}</span></span>
-      <span class="ct">${it.cat}</span>
-    </div>`).join("") + (curList.length>n ? `<div style="padding:6px 12px;color:var(--dim2);font-size:11px">…还有 ${curList.length-n} 个匹配</div>` : "");
+      <span class="nm"><span class="zh">${nameOf(it.id)}</span> <span class="en">${itemAlt(it)}</span></span>
+      <span class="ct">${catName(it.cat)}</span>
+    </div>`).join("") + (curList.length>n ? `<div style="padding:6px 12px;color:var(--dim2);font-size:11px">${L("…还有 ","… ")}${curList.length-n}${L(" 个匹配"," more")}</div>` : "");
   drop.classList.remove("hidden");
   $$(".sd-item", drop).forEach(el=>{
     el.addEventListener("mousedown", ev=>{ ev.preventDefault(); pickItem(el.dataset.id); });
@@ -976,10 +992,10 @@ window.addEventListener("keydown", ev=>{
 
 /* ---------------- legend (clickable category filter) ---------------- */
 function buildLegend(){
-  let h = `<div class="t">图例 · 类别 <span class="legend-hint">点击高亮该类型</span></div>`;
+  let h = `<div class="t">${L("图例 · 类别","Legend · Category")} <span class="legend-hint">${L("点击高亮该类型","click to highlight")}</span></div>`;
   CAT_ORDER.forEach(c=>{
     const n = G.items.filter(it=>it.cat===c).length;
-    h += `<div class="row lg-item" data-cat="${c}"><span class="dot" style="background:${CAT_COLOR[c]}"></span>${c}<span class="lg-cnt">${n}</span></div>`;
+    h += `<div class="row lg-item" data-cat="${c}"><span class="dot" style="background:${CAT_COLOR[c]}"></span>${catName(c)}<span class="lg-cnt">${n}</span></div>`;
   });
   $("#legend").innerHTML = h;
   $$("#legend .lg-item").forEach(el=>el.addEventListener("click", ()=>{
@@ -995,13 +1011,51 @@ function refreshLegend(){
   $$("#legend .lg-item").forEach(el=>el.classList.toggle("on", !!catFilter && el.dataset.cat === catFilter));
 }
 
+
+/* ---------------- language toggle ---------------- */
+function buildHelp(){
+  const body = $("#help-body"), tt = $("#help-title");
+  if (tt) tt.textContent = L("使用说明","How to use");
+  if (!body) return;
+  body.innerHTML = `
+  <div class="help-block"><h3>${L("① 聚焦查看上游 / 下游","① Focus: upstream / downstream")}</h3>
+    <p>${L("点击任意物品进入聚焦模式：只保留它的上游依赖树并自动重排放大；右侧面板显示配方、直接原料、用途与上游清单。点空白 / Esc / ← 返回 切回全景。","Click any item to enter focus mode: only its upstream tree is kept and re-laid-out and enlarged; the side panel shows recipes, direct inputs, uses and the upstream list. Click empty space / Esc / Back to return.")}</p></div>
+  <div class="help-block"><h3>${L("② 多配方切换 · 缩减上游","② Multi-recipe toggle · shrink upstream")}</h3>
+    <p>${L("在「生产配方」或「上游配方」取消勾选即可禁用某条配方，从而按你的路线缩减上游；再次勾选恢复。","Uncheck a recipe in \"Production recipes\" or \"Upstream recipes\" to disable it and shrink the upstream along your chosen route; re-check to restore.")}</p></div>
+  <div class="help-block"><h3>${L("③ 资源模式","③ Resource mode")}</h3>
+    <p>${L("点击顶栏「资源模式」，勾选当前可采集的基础资源，系统会高亮所有可向下合成的产物；选好后可用「收起」隐藏面板，筛选仍生效。","Click \"Resource Mode\", check the resources you can collect; the app highlights all downstream craftable items. Use \"collapse\" to hide the panel while the filter stays active.")}</p></div>
+  <div class="help-block"><h3>${L("④ 名称与图标 · 产线计算","④ Names & icons · production calculator")}</h3>
+    <p>${L("每个物品显示图标 + 名称（可中英切换）。聚焦时「产线计算」会按目标产出（默认 100/min）折算每个上游的需求与所需生产/采集建筑数量。","Each item shows an icon + name (switchable ZH/EN). In focus mode the \"Production Calculator\" converts a target rate (default 100/min) into each upstream's demand and the number of buildings needed.")}</p></div>
+  <div class="help-block"><h3>${L("操作","Controls")}</h3>
+    <ul>${L("<li>滚轮缩放 · 拖拽平移 · 右下角按钮缩放/适应</li><li>搜索框输入中/英文名定位</li><li>数据：游戏 0.10.34（174 物品 / 161 配方）</li>","<li>Scroll to zoom · drag to pan · buttons lower-right</li><li>Search box (ZH/EN) to locate</li><li>Data: game 0.10.34 (174 items / 161 recipes)</li>")}</ul></div>`;
+}
+function applyLang(){
+  document.documentElement.lang = lang;
+  const setT = (id, zh, en)=>{ const el = $(id); if (el) el.textContent = L(zh, en); };
+  setT("#btn-resources","资源模式","Resource Mode");
+  setT("#btn-recipes","配方管理","Recipe Manager");
+  setT("#btn-help","帮助","Help");
+  setT("#btn-reset","重置视图","Reset View");
+  setT("#brand-title","戴森球计划 · 合成树助手","Dyson Sphere Program · Recipe Tree");
+  const lt = $("#lang-toggle"); if (lt){ lt.textContent = lang==="zh" ? "EN" : "中"; lt.title = lang==="zh" ? "切换到 English" : "切换到中文"; }
+  const se = $("#search"); if (se) se.placeholder = L("搜索物品…（处理器 / quantum）","Search items… (processor / quantum)");
+  buildLegend();
+  buildResourcePanel();
+  buildGraph();
+  applyState();
+  updateHint();
+  updateRecipeBtn();
+  buildHelp();
+  if (focus) renderSide(focus);
+}
+function persistLang(){ try { localStorage.setItem("dsp-tree-lang", lang); } catch(e){} }
+$("#lang-toggle").addEventListener("click", ()=>{ lang = lang==="zh" ? "en" : "zh"; applyLang(); persistLang(); });
+
 /* ---------------- boot ---------------- */
 restore();
+try { const pl = localStorage.getItem("dsp-tree-lang"); if (pl==="en"||pl==="zh") lang = pl; } catch(e){}
 curLayout = globalLayout();
-buildGraph();
-buildLegend();
-buildResourcePanel();
-updateRecipeBtn();
-updateHint();
+applyLang();
 fitView();
-refreshResourcePanel();   // sets panel visibility + reopen affordance from restored state
+refreshResourcePanel();
+persistLang();
