@@ -271,6 +271,22 @@ details.up summary:hover{color:var(--acc)}
 .upr-tog.off{opacity:.45}
 .upr-tog:hover{border-color:var(--acc)}
 
+/* production calculator */
+.calc-count{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--txt);margin-bottom:8px}
+.calc-rate{width:72px;height:26px;border-radius:8px;border:1px solid var(--line2);background:var(--bg2);color:var(--acc);font-weight:700;text-align:center;font-size:13px;outline:none}
+.calc-rate:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(77,215,254,.18)}
+.calc-table{display:flex;flex-direction:column;gap:2px}
+.calc-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:4px 6px;border-radius:6px;border-bottom:1px solid var(--line)}
+.calc-row:hover{background:var(--bg3)}
+.calc-it{display:flex;align-items:center;gap:6px;font-size:12px;min-width:0}
+.calc-it img{width:18px;height:18px;flex:0 0 auto}
+.calc-dem{font-weight:700;color:var(--acc);font-size:12px;white-space:nowrap}
+.calc-unit{font-size:10px;color:var(--dim2);font-weight:400}
+.calc-bld{font-size:11.5px;color:var(--acc2);white-space:nowrap;text-align:right}
+.calc-note{font-size:10px;color:var(--dim2)}
+.calc-sel{margin-left:6px;font-size:10.5px;background:var(--bg3);color:var(--txt);border:1px solid var(--line2);border-radius:6px;padding:0 3px;height:20px;max-width:120px;vertical-align:middle}
+.calc-sel:focus{border-color:var(--acc)}
+
 /* ---------------- modal ---------------- */
 .modal-back{
   position:fixed;inset:0;z-index:80;background:rgba(4,7,14,.62);backdrop-filter:blur(3px);

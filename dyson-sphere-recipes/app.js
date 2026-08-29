@@ -38,6 +38,8 @@ let focusStack = [];
 let resourceMode = false;
 let selectedRaws = new Set();
 let catFilter = null;          // category highlight (click legend); global only
+let targetRate = 100;          // /min target for the production calculator
+const recipeChoice = {};       // itemId -> chosen recipe id (for multi-recipe calc)
 
 /* ---------------- graph set operations ---------------- */
 function enabledRecipes(){ return G.recipes.filter(r=>!disabled.has(r.id)); }
@@ -528,21 +530,28 @@ svg.addEventListener("wheel", ev=>{
 }, {passive:false});
 let drag = null;
 svg.addEventListener("mousedown", ev=>{
-  if (ev.button === 0 && !ev.target.closest(".node")){
-    drag = { x: ev.clientX, y: ev.clientY, tx: view.tx, ty: view.ty };
-    svg.classList.add("dragging");
-    ev.preventDefault();
-    if (focus) clearFocus();
-  } else if (ev.button === 1 || ev.button === 2){
-    drag = { x: ev.clientX, y: ev.clientY, tx: view.tx, ty: view.ty };
+  if (ev.button === 0 && ev.target.closest(".node")) return; // left on node: let the node click handle it
+  if (ev.button === 0 || ev.button === 1 || ev.button === 2){
+    drag = { x: ev.clientX, y: ev.clientY, tx: view.tx, ty: view.ty, moved: false, btn: ev.button };
     svg.classList.add("dragging");
     ev.preventDefault();
   }
 });
 window.addEventListener("mousemove", ev=>{
-  if (drag){ view.tx = drag.tx + (ev.clientX-drag.x); view.ty = drag.ty + (ev.clientY-drag.y); applyView(true); }
+  if (drag){
+    const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
+    if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+    view.tx = drag.tx + dx; view.ty = drag.ty + dy;
+    applyView(true);
+  }
 });
-window.addEventListener("mouseup", ()=>{ if (drag){ drag = null; svg.classList.remove("dragging"); } });
+window.addEventListener("mouseup", ev=>{
+  if (drag){
+    const wasClick = !drag.moved && drag.btn === 0; // a true (non-dragged) empty click
+    drag = null; svg.classList.remove("dragging");
+    if (wasClick && focus) clearFocus();
+  }
+});
 svg.addEventListener("contextmenu", ev=>ev.preventDefault());
 function zoomBy(f){
   const vw = svg.clientWidth, vh = svg.clientHeight;
@@ -556,10 +565,117 @@ $("#z-out").addEventListener("click", ()=>zoomBy(1/1.35));
 $("#z-fit").addEventListener("click", ()=> mode==="focus" ? fitFocus() : fitView());
 window.addEventListener("resize", ()=>{ if (view.k <= 0) fitView(); });
 
+/* ---------------- production calculator ---------------- */
+const RAW_RATE = {
+  vein:   { b: "采矿机",   r: 30, note: "估算·按每脉 30/min" },
+  ocean:  { b: "抽水站",   r: 60, note: "估算·60/min" },
+  gas:    { b: "轨道采集器", r: 30, note: "估算·约 30/min" },
+  tree:   { b: "手动砍伐", r: null, note: "手动·不固定" },
+  plant:  { b: "手动采集", r: null, note: "手动·不固定" },
+  darkfog:{ b: "黑雾掉落", r: null, note: "掉落·不可控" },
+  special:{ b: "特殊建筑", r: null, note: "按需求" },
+};
+function possibleRecipes(id){ return G.recipes.filter(r=>r.out.some(o=>o.i===id) && !disabled.has(r.id)); }
+function collectSrc(id){ return (ITEM[id].src||[]).some(s=>["vein","ocean","gas","tree","plant"].includes(s.type)); }
+function chosenRecipe(id){
+  const recs = possibleRecipes(id);
+  if (recipeChoice[id] && recs.some(r=>r.id===recipeChoice[id])) return recs.find(r=>r.id===recipeChoice[id]);
+  if (!recs.length) return null;
+  if (collectSrc(id)) return null;      // prefer mining the natural source by default (switchable)
+  return recs.slice().sort((a,b)=>a.id-b.id)[0];
+}
+function rawBuilding(id, demand){
+  const src = ITEM[id].src || [];
+  for (const s of src){
+    const r = RAW_RATE[s.type];
+    if (r) {
+      const n = r.r ? Math.ceil(demand / r.r) : "—";
+      return { b: r.b, n, note: r.note };
+    }
+  }
+  return { b: "—", n: "—", note: "" };
+}
+function computeFlow(rootId, rate){
+  const chosen = {};
+  const closure = new Set([rootId]);
+  const stack = [rootId];
+  while (stack.length) {
+    const n = stack.pop();
+    const r = chosenRecipe(n);
+    if (r){
+      chosen[n] = r;
+      r.in.forEach(x=>{ if (!closure.has(x.i)){ closure.add(x.i); stack.push(x.i); } });
+    }
+  }
+  // Kahn topological order of the "consumes" DAG (final product first)
+  const indeg = {}, adj = {};
+  closure.forEach(n=>{ indeg[n] = 0; adj[n] = []; });
+  closure.forEach(n=>{ const r = chosen[n]; if (r) r.in.forEach(x=>{ if (closure.has(x.i)){ adj[n].push(x.i); indeg[x.i]++; } }); });
+  const q = [...closure].filter(n=>indeg[n]===0);
+  const order = [];
+  while (q.length){ const n = q.shift(); order.push(n); adj[n].forEach(m=>{ if (--indeg[m]===0) q.push(m); }); }
+  // propagate demand root -> inputs
+  const demand = {}; demand[rootId] = rate;
+  for (const n of order){
+    const r = chosen[n]; if (!r) continue;
+    const cx = (r.out.find(o=>o.i===n) || {}).n || 1;
+    r.in.forEach(x=>{ demand[x.i] = (demand[x.i] || 0) + demand[n] * (x.n) / cx; });
+  }
+  // rows
+  const rows = [...closure].map(n=>{
+    const d = demand[n] || 0;
+    const r = chosen[n];
+    let bld, note = "";
+    if (r){
+      const cx = (r.out.find(o=>o.i===n) || {}).n || 1;
+      bld = { b: r.b, n: Math.ceil(d * r.t / (cx * 60)) };
+    } else {
+      bld = rawBuilding(n, d); note = bld.note;
+    }
+    return { itemId: n, demand: d, bld, note, recipe: r, selectable: collectSrc(n) || possibleRecipes(n).length > 1 };
+  });
+  rows.sort((a,b)=> (curLayout.lay[a.itemId] ?? 999) - (curLayout.lay[b.itemId] ?? 999)
+    || ITEM[b.itemId].zh.localeCompare(ITEM[a.itemId].zh, "zh-Hans-CN"));
+  return rows;
+}
+
 /* ---------------- side panel ---------------- */
 function recipeRowHTML(r){
   return r.in.map(x=>`<span class="it-chip"><img src="${ITEM[x.i].icon}" alt="">${ITEM[x.i].zh}<span class="cnt">×${fmtCount(x.n)}</span></span>`)
     .join('<span class="arrow">→</span>');
+}
+
+function fmtDemand(d){
+  if (d % 1 === 0) return String(d);
+  return (Math.round(d * 100) / 100) + "";
+}
+function rowRecipeOptions(itemId, curRecipeId, curRaw){
+  let opts = collectSrc(itemId) ? `<option value="raw" ${curRaw?"selected":""}>原生采集</option>` : "";
+  opts += possibleRecipes(itemId).map(r=>`<option value="${r.id}" ${!curRaw && r.id===curRecipeId?"selected":""}>${r.zh}（${r.b}）</option>`).join("");
+  return opts;
+}
+function refreshCalc(id){
+  const el = $("#calc-list");
+  if (!el) return;
+  const rows = computeFlow(id, targetRate);
+  if (!rows.length){ el.innerHTML = `<div class="rcp-none">无法计算（该物品没有可用的生产配方）</div>`; return; }
+  let h = `<div class="calc-table">`;
+  rows.forEach(row=>{
+    const it = ITEM[row.itemId];
+    const curRaw = !row.recipe;
+    const sel = row.selectable
+      ? `<select class="calc-sel" data-item="${row.itemId}" title="选择该物品的产出方式">${rowRecipeOptions(row.itemId, row.recipe?row.recipe.id:null, curRaw)}</select>` : "";
+    h += `<div class="calc-row">
+      <span class="calc-it"><img src="${it.icon}" alt="">${it.zh}${sel}</span>
+      <span class="calc-dem">${fmtDemand(row.demand)}<span class="calc-unit">/min</span></span>
+      <span class="calc-bld">${row.bld.b} × ${row.bld.n}${row.note?`<span class="calc-note"> ${row.note}</span>`:""}</span>
+    </div>`;
+  });
+  h += `</div>`;
+  el.innerHTML = h;
+  $$("#calc-list .calc-sel", $("#side-content")).forEach(s=>{
+    s.addEventListener("change", ()=>{ const v = s.value; if (v==="raw") delete recipeChoice[s.dataset.item]; else recipeChoice[s.dataset.item] = Number(v); refreshCalc(id); });
+  });
 }
 
 function renderSide(id){
@@ -591,6 +707,15 @@ function renderSide(id){
       it.src.map(s=>`<span class="it-chip srcb"><span class="cnt">◆</span>${s.label}</span>`).join("")
     }</div></div>`;
   }
+
+  // production calculator (target rate -> upstream demands + building counts)
+  h += `<div class="sect" id="calc-sect"><h3>产线计算</h3>
+    <div class="calc-count">目标产出
+      <input id="calc-rate" class="calc-rate" type="number" min="1" step="any" value="${targetRate}"> /分钟
+      <button class="mini-btn" id="calc-preset" title="快捷设置为 100/min">100</button>
+    </div>
+    <div id="calc-list"></div>
+  </div>`;
 
   // this item's recipes (toggle)
   h += `<div class="sect"><h3>生产配方</h3>`;
@@ -682,6 +807,13 @@ function renderSide(id){
     });
   });
   $$(".subitems .drill", $("#side-content")).forEach(el=>el.addEventListener("click", ()=>setFocus(el.dataset.drill)));
+  const rateInput = $("#calc-rate");
+  if (rateInput){
+    rateInput.addEventListener("input", ()=>{ targetRate = Math.max(0.1, Number(rateInput.value) || 100); refreshCalc(id); });
+    rateInput.addEventListener("change", ()=>{ targetRate = Math.max(0.1, Number(rateInput.value) || 100); refreshCalc(id); });
+  }
+  const pres = $("#calc-preset"); if (pres) pres.addEventListener("click", ()=>{ targetRate = 100; const ri=$("#calc-rate"); if (ri) ri.value = 100; refreshCalc(id); });
+  refreshCalc(id);
 }
 
 /* ---------------- resource mode ---------------- */
