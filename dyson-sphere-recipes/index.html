@@ -91,6 +91,12 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .rp-head .btns{margin-left:auto;display:flex;gap:8px}
 .mini-btn{height:24px;padding:0 10px;border-radius:12px;border:1px solid var(--line2);background:var(--bg3);font-size:12px}
 .mini-btn:hover{border-color:var(--acc);color:var(--acc)}
+#rsrc-reopen{
+  position:fixed;top:60px;left:14px;z-index:36;height:30px;padding:0 13px;border-radius:16px;
+  border:1px solid var(--acc2);background:rgba(11,16,28,.92);color:var(--acc2);font-size:12.5px;
+  box-shadow:var(--cg);display:flex;align-items:center;gap:4px;
+}
+#rsrc-reopen:hover{background:rgba(250,182,72,.16);border-color:var(--acc2)}
 #rsrc-stats{font-size:12.5px;color:var(--acc);margin-top:8px}
 .rp-groups{display:flex;flex-wrap:wrap;gap:10px}
 .rp-group{border:1px solid var(--line);border-radius:10px;padding:6px 9px 8px;background:rgba(16,24,40,.6)}
@@ -362,11 +368,14 @@ details.up summary:hover{color:var(--acc)}
     <div class="btns">
       <button class="mini-btn" id="rsrc-all">全选</button>
       <button class="mini-btn" id="rsrc-none">清空</button>
+      <button class="mini-btn" id="rsrc-collapse" title="收起面板（筛选仍生效）">收起 ▾</button>
     </div>
   </div>
   <div class="rp-groups" id="rsrc-groups"></div>
   <div id="rsrc-stats"></div>
 </div>
+
+<button id="rsrc-reopen" class="hidden" title="展开资源筛选面板">🞂 资源筛选 · 已选 <span id="rsrc-reopen-n">0</span></button>
 
 <div id="stage">
   <svg id="canvas"><g id="world" class="world"></g></svg>

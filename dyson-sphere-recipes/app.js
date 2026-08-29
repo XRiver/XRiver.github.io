@@ -36,6 +36,7 @@ let disabled = new Set();
 let focus = null;              // focused item id (focus mode)
 let focusStack = [];
 let resourceMode = false;
+let resPanelOpen = true;       // whether the resource-selection panel is expanded
 let selectedRaws = new Set();
 let catFilter = null;          // category highlight (click legend); global only
 let targetRate = 100;          // /min target for the production calculator
@@ -829,15 +830,27 @@ function buildResourcePanel(){
 }
 function refreshResourcePanel(){
   $$("#rsrc-groups .chip").forEach(c=>c.classList.toggle("sel", selectedRaws.has(c.dataset.id)));
-  const n = resourceMode ? selectedRaws.size : 0;
   $("#rsrc-stats").innerHTML = resourceMode
     ? `已勾选 <b>${selectedRaws.size}</b> 种可采集资源，可向下合成 <b>${(craftableFrom(selectedRaws)||new Set()).size}</b> 种物品（共 ${G.items.length} 种）`
     : "";
   $("#btn-resources").classList.toggle("on", resourceMode);
+  updateResPanel();
 }
+function updateResPanel(){
+  const panel = $("#resource-panel");
+  panel.classList.toggle("hidden", !resPanelOpen);
+  const reopen = $("#rsrc-reopen"), rn = $("#rsrc-reopen-n");
+  if (resourceMode && !resPanelOpen){
+    reopen.classList.remove("hidden");
+    if (rn) rn.textContent = selectedRaws.size;
+  } else {
+    reopen.classList.add("hidden");
+  }
+}
+function setResPanelOpen(open){ resPanelOpen = !!open; updateResPanel(); }
 function toggleResourceMode(forced){
   resourceMode = forced !== undefined ? forced : !resourceMode;
-  $("#resource-panel").classList.toggle("hidden", !resourceMode);
+  if (resourceMode) resPanelOpen = true; else resPanelOpen = false;
   applyState();
   refreshResourcePanel();
   persist();
@@ -947,6 +960,8 @@ $("#rsrc-groups").addEventListener("click", ev=>{
   if (selectedRaws.has(id)) selectedRaws.delete(id); else selectedRaws.add(id);
   applyState(); refreshResourcePanel(); persist();
 });
+$("#rsrc-collapse").addEventListener("click", ()=>setResPanelOpen(false));
+$("#rsrc-reopen").addEventListener("click", ()=>setResPanelOpen(true));
 $("#btn-recipes").addEventListener("click", openRecipeManager);
 $("#btn-help").addEventListener("click", ()=>$("#modal-help").classList.remove("hidden"));
 $$(".modal-close").forEach(b=>b.addEventListener("click", ()=>$("#"+b.dataset.close).classList.add("hidden")));
@@ -989,5 +1004,4 @@ buildResourcePanel();
 updateRecipeBtn();
 updateHint();
 fitView();
-if (resourceMode) $("#resource-panel").classList.remove("hidden");
-$("#btn-resources").classList.toggle("on", resourceMode);
+refreshResourcePanel();   // sets panel visibility + reopen affordance from restored state
