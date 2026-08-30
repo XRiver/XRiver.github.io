@@ -220,14 +220,43 @@ function computeLayoutSet(memberSet){
   layerIdx; // unused rename guard
   const _ = layerIdx;
 
-  // positions (within a layer, keep the ordered array)
-  let maxRows = 0;
-  layers.forEach(l=>{ maxRows = Math.max(maxRows, l.length); });
+  // ---- coordinate assignment: center each node on its upstream (parent) span ----
+  const pitch = NH + ROWG;
+  const posY = {};
+  layers.forEach((l, ci)=> l.forEach((id, ri)=> posY[id] = ri * pitch));  // layer 0 anchored, rest seeded
+  function desiredY(l, id, dir){   // dir=true: center on parents (back); dir=false: center on children (fwd)
+    const adj = dir ? back[id] : fwd[id];
+    let sum = 0, c = 0;
+    for (const n of adj) if (posY[n] !== undefined){ sum += posY[n]; c++; }
+    let d = c ? sum / c : posY[id];
+    if (ITEM[id].cat === "矩阵") d = d * 0.12;   // pull matrices toward the top of their column
+    return d;
+  }
+  function placeLayer(l, dir){
+    const L = layers[l]; if (!L.length) return;
+    const items = L.map(id=>({ id, d: desiredY(l, id, dir) }))
+                    .sort((a,b)=> (a.d - b.d) || (catRank(a.id) - catRank(b.id)));
+    const y = new Array(items.length);
+    y[0] = items[0].d;
+    for (let i=1; i<items.length; i++) y[i] = Math.max(items[i].d, y[i-1] + pitch);
+    const md = items.reduce((s,x)=> s + x.d, 0) / items.length;   // mean desired
+    const mp = y.reduce((a,b)=> a + b, 0) / items.length;          // mean placed
+    let sh = md - mp;                                              // centre the block, but never below 0
+    const minY = Math.min(...y);
+    if (sh < -minY) sh = -minY;
+    items.forEach((x,i)=> posY[x.id] = y[i] + sh);
+  }
+  for (let iter=0; iter<10; iter++){
+    for (let l=1; l<layers.length; l++) placeLayer(l, true);        // children follow parents
+    for (let l=layers.length-1; l>=1; l--) placeLayer(l, false);    // refine via children (layer 0 stays anchored)
+  }
+  // normalize so nothing sits above the canvas
+  let minY = Infinity, maxY = 0;
+  layers.forEach((l, ci)=> l.forEach(id=>{ if (posY[id] < minY) minY = posY[id]; if (posY[id] > maxY) maxY = posY[id]; }));
+  const off = minY < 0 ? -minY : 0;
   const pos = {};
-  layers.forEach((l, ci)=> l.forEach((id, ri)=>{
-    pos[id] = { x: PAD + ci*COLX, y: PAD + ri*(NH+ROWG) };
-  }));
-  return { pos, w: PAD*2 + layers.length*COLX, h: PAD*2 + maxRows*(NH+ROWG), lay, layers };
+  layers.forEach((l, ci)=> l.forEach(id=>{ pos[id] = { x: PAD + ci*COLX, y: PAD + posY[id] + off }; }));
+  return { pos, w: PAD*2 + layers.length*COLX, h: PAD*2 + (maxY + NH), lay, layers };
 }
 
 /* ---------------- layouts & mode ---------------- */
