@@ -9,25 +9,61 @@
     background:radial-gradient(1000px 500px at 70% -10%,rgba(40,70,140,.35),transparent 60%),
                radial-gradient(800px 480px at 10% 110%,rgba(120,60,160,.18),transparent 60%),#0b0f1a;
     color:#dbe6f5;font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;text-align:center;}
-  .card{max-width:520px;padding:40px 44px}
+  .card{width:100%;max-width:520px;padding:40px 40px}
   .logo{width:64px;height:64px;border-radius:50%;margin:0 auto 18px;
     background:radial-gradient(circle at 35% 30%,#2ec7a8,#0b5a49 70%);
     display:flex;align-items:center;justify-content:center;font-size:30px;box-shadow:0 0 30px rgba(46,199,168,.5);}
   h1{font-size:26px;margin:0 0 10px;letter-spacing:1px}
-  p{color:#8fa2bd;font-size:14px;line-height:1.8;margin:0 0 26px}
-  a.link{display:inline-block;padding:12px 26px;border-radius:22px;background:#2ec7a8;color:#06231c;
-    font-weight:700;font-size:15px;text-decoration:none;transition:filter .15s}
-  a.link:hover{filter:brightness(1.12)}
-  .sub{margin-top:16px;font-size:12px;color:#5b6f8c}
+  p.lead{color:#8fa2bd;font-size:14px;line-height:1.8;margin:0 0 26px}
+
+  .links{display:flex;flex-direction:column;gap:12px}
+  a.link{display:flex;align-items:center;gap:14px;padding:15px 20px;border-radius:14px;
+    text-align:left;text-decoration:none;color:inherit;
+    border:1px solid #22314d;background:linear-gradient(180deg,rgba(16,24,40,.85),rgba(11,16,28,.85));
+    transition:border-color .18s,transform .18s,background .18s}
+  a.link:hover{border-color:#2ec7a8;transform:translateY(-2px)}
+  a.link .ico{width:38px;height:38px;flex:0 0 auto;border-radius:11px;display:flex;
+    align-items:center;justify-content:center;font-size:18px;
+    border:1px solid #2e4470;background:#172236}
+  a.link .tx{min-width:0;flex:1}
+  a.link .t{display:block;font-size:15px;font-weight:700;letter-spacing:.3px}
+  a.link .s{display:block;font-size:12px;color:#5b6f8c;margin-top:3px;line-height:1.5}
+  a.link .go{flex:0 0 auto;color:#2e4470;font-size:18px;transition:color .18s,transform .18s}
+  a.link:hover .go{color:#2ec7a8;transform:translateX(3px)}
+  a.link:hover .t{color:#2ec7a8}
+
+  .sub{margin-top:20px;font-size:12px;color:#5b6f8c}
+  .sub a{color:#8fa2bd;text-decoration:none;border-bottom:1px dotted #2e4470}
+  .sub a:hover{color:#2ec7a8}
 </style>
 </head>
 <body>
   <div class="card">
     <div class="logo">◈</div>
     <h1>XRiver's Pages</h1>
-    <p>你好，这里是 XRiver 的页面集合。</p>
-    <a class="link" href="/dyson-sphere-recipes/">戴森球计划 · 合成树助手</a>
-    <div class="sub">Dyson Sphere Program · Recipe Tree Assistant</div>
+    <p class="lead">你好，这里是 XRiver 的页面集合。</p>
+
+    <nav class="links">
+      <a class="link" href="/dyson-sphere-recipes/">
+        <span class="ico">🛰</span>
+        <span class="tx">
+          <span class="t">戴森球计划 · 合成树助手</span>
+          <span class="s">Dyson Sphere Program · Recipe Tree Assistant</span>
+        </span>
+        <span class="go">›</span>
+      </a>
+
+      <a class="link" href="/tools/">
+        <span class="ico">⚒</span>
+        <span class="tx">
+          <span class="t">个人小工具</span>
+          <span class="s">My Tools · Android 小应用合集</span>
+        </span>
+        <span class="go">›</span>
+      </a>
+    </nav>
+
+    <div class="sub">源码在 GitHub · <a href="https://github.com/XRiver">@XRiver</a></div>
   </div>
 </body>
 </html>
